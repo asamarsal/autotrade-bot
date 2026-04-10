@@ -1,0 +1,7 @@
+node_modules/
+config/.env
+data/btc.json
+data/btc_1m.csv
+logs/
+*.log
+.DS_Store
