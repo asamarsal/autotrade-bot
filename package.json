@@ -8,6 +8,7 @@
     "train": "node scripts/train.js",
     "backtest": "node scripts/run-backtest.js",
     "live": "node scripts/live-bot.js",
+    "stats": "node scripts/evaluate-trades.js",
     "full": "npm run fetch && npm run train && npm run backtest"
   },
   "dependencies": {
