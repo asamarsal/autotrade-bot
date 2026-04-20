@@ -66,12 +66,22 @@ class Executor {
     const kellyFraction = (b * p - q) / b;
     const safeFraction = Math.max(0, Math.min(kellyFraction * 0.5, C.BET_SIZE)); // half-kelly, max 2%
 
-    const betAmount = round(balance * safeFraction, 2);
+    // Di paper mode: jika Kelly negatif (model tidak yakin),
+    // tetap catat trade dengan bet tetap kecil agar bisa evaluasi akurasi sinyal.
+    // Di live mode: skip jika tidak ada edge (safeFraction = 0).
+    let betAmount;
+    if (!this.isLive && safeFraction === 0) {
+      betAmount = round(balance * (C.PAPER_BET_SIZE || 0.01), 2); // 1% fixed paper bet
+      logger.debug(`Paper mode: Kelly negatif → pakai fixed bet $${betAmount}`);
+    } else {
+      betAmount = round(balance * safeFraction, 2);
+    }
 
     if (betAmount < 1) {
       logger.debug(`Bet terlalu kecil (${betAmount} USD), skip`);
       return null;
     }
+
 
     const trade = {
       id: `trade_${Date.now()}`,
