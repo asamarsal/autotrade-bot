@@ -179,6 +179,16 @@ class LiveBot {
     this.stats.candlesProcessed++;
     logger.debug(`Candle closed: ${new Date(candle.timestamp).toISOString()} | Close: $${candle.close}`);
 
+    // Jika mode "fixed", hanya proses candle yang sejajar dengan interval 5 menit (00, 05, 10, dst)
+    if (C.TRADE_MODE === "fixed") {
+      const minutes = new Date(candle.timestamp).getMinutes();
+      if (minutes % C.PREDICT_HORIZON !== 0) {
+        // Tetap masukkan ke buffer agar indikator akurat, tapi jangan lakukan scoring/trade
+        this.scorer.addCandle(candle);
+        return;
+      }
+    }
+
     // Tambah ke scorer buffer
     this.scorer.addCandle(candle);
 

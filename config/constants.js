@@ -25,6 +25,7 @@ module.exports = {
     THRESHOLD_UP: 0.60,       // predict UP kalau P >= 0.60
     THRESHOLD_DOWN: 0.40,     // predict DOWN kalau P <= 0.40
     PREDICT_HORIZON: 5,       // candle ke depan untuk label (5 menit)
+    TRADE_MODE: "continuous", // "continuous" (tiap menit) atau "fixed" (tiap 5 menit)
 
     // --- DATA ---
     BINANCE_SYMBOL: "BTCUSDT",
