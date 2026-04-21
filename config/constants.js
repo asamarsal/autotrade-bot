@@ -14,7 +14,7 @@ module.exports = {
 
     // --- MODEL ---
     LEARNING_RATE: 0.01,
-    EPOCHS: 1000,
+    EPOCHS: 3000,
     N_FEATURES: 6,            // jumlah feature vector
 
     // --- BACKTEST ---
@@ -46,7 +46,7 @@ module.exports = {
 
     // --- SECONDARY SIGNALS (Confirmation Gate saat HOLD) ---
     FUTURES_BASE: "https://fapi.binance.com",
-    SECONDARY_THRESHOLD: 3,       // min skor absolut untuk override HOLD
+    SECONDARY_THRESHOLD: 4,       // min skor absolut untuk override HOLD
     OI_DELTA_THRESHOLD: 0.005,    // 0.5% perubahan OI = signifikan
     FUNDING_EXTREME: 0.0001,      // funding rate ±0.01% = crowded trade
     LIQD_SPIKE_WINDOW: 5,         // window liquidasi dalam menit
