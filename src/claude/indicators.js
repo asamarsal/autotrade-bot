@@ -3,7 +3,7 @@
 // Semua fungsi murni: input array → output array
 // ============================================================
 
-const { mean } = require("./utils");
+const { mean } = require("../utils");
 
 // --- EMA (Exponential Moving Average) ---
 function ema(closes, period) {
