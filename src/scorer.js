@@ -14,8 +14,8 @@
 
 const { buildFeatureAt } = require("./features");
 const LogisticModel = require("./model");
-const { computeAll } = require("./indicators");
-const SecondarySignals = require("./secondary-signals");
+const { computeAll } = require("./claude/indicators");
+const { computeVote } = require("./claude/voting");
 const { logger, round } = require("./utils");
 const C = require("../config/constants");
 
@@ -24,7 +24,7 @@ class Scorer {
     this.model = new LogisticModel();
     this.candles = []; // rolling buffer candle terbaru
     this.BUFFER_SIZE = 200; // simpan 200 candle terakhir
-    this.secondary = new SecondarySignals(); // secondary confirmation gate
+    this.secondary = { pushLiquidation: () => {} }; // dummy agar live-bot.js tidak error saat pushLiquidation
   }
 
   // Load model yang sudah di-train
@@ -117,10 +117,14 @@ class Scorer {
     }
 
     // Primary HOLD → aktifkan secondary gate
-    logger.info(`⚪ Primary HOLD (P=${primary.pUp}) → Activating secondary gate...`);
+    logger.info(`⚪ Primary HOLD (P=${primary.pUp}) → Activating secondary gate (Claude Voting 10 Indicators)...`);
 
     try {
-      const secondaryResult = await this.secondary.evaluate(this.candles, C.BINANCE_SYMBOL);
+      const candle = this.candles[this.candles.length - 1];
+      const prev = this.candles.length > 1 ? this.candles[this.candles.length - 2] : null;
+
+      // Panggil fungsi voting baru
+      const secondaryResult = computeVote(candle, prev, { threshold: 7, requireWindow: true });
 
       const finalSignal = secondaryResult.signal !== "HOLD"
         ? secondaryResult.signal  // secondary berhasil override
@@ -129,10 +133,13 @@ class Scorer {
       const source = secondaryResult.signal !== "HOLD" ? "secondary_override" : "primary";
 
       if (secondaryResult.signal !== "HOLD") {
-        logger.info(`✅ Secondary override: HOLD → ${finalSignal} (score=${secondaryResult.totalScore})`);
+        logger.info(`✅ Secondary override: HOLD → ${finalSignal} (score=${secondaryResult.score})`);
       } else {
-        logger.info(`⚪ Secondary juga HOLD (score=${secondaryResult.totalScore}) → tidak pasang taruhan`);
+        logger.info(`⚪ Secondary juga HOLD (score=${secondaryResult.score}) → tidak pasang taruhan`);
       }
+      
+      // Log detail voting
+      logger.info(secondaryResult.breakdown);
 
       return {
         ...primary,
