@@ -54,15 +54,18 @@ function voteEmaCross(candle) {
 }
 
 /**
- * V2: RSI
- * UP jika RSI < 50 (momentum mulai naik / oversold zone)
- * DOWN jika RSI > 50
- * NEUTRAL jika RSI 48–52 (dead zone)
+ * V2: RSI — MOMENTUM mode
+ * UP  jika RSI > 55 (bullish momentum zona, trending naik)
+ * DOWN jika RSI < 45 (bearish momentum zona, trending turun)
+ * NEUTRAL jika RSI 45–55 (tidak ada momentum jelas)
+ *
+ * Logika: RSI tinggi di market trending = konfirmasi kuat, bukan overbought.
+ * Gunakan reversal (RSI<30/RSI>70) hanya di market sideways.
  */
 function voteRsi(candle) {
     if (candle.rsi === null) return 0;
-    if (candle.rsi < 48) return +1;
-    if (candle.rsi > 52) return -1;
+    if (candle.rsi > 55) return +1;  // momentum bullish kuat
+    if (candle.rsi < 45) return -1;  // momentum bearish kuat
     return 0;
 }
 
@@ -91,10 +94,13 @@ function voteMacdCross(candle, prev) {
 }
 
 /**
- * V5: Bollinger Bands Position
- * UP jika harga dekat BB Lower (oversold / reversal)
- * DOWN jika harga dekat BB Upper (overbought / reversal)
- * NEUTRAL jika di tengah
+ * V5: Bollinger Bands Position — MOMENTUM mode
+ * UP  jika harga di atas 55% range (bias bullish, mengikuti trend atas)
+ * DOWN jika harga di bawah 45% range (bias bearish, mengikuti trend bawah)
+ * NEUTRAL jika di tengah (45%–55%)
+ *
+ * Logika: Harga yang konsisten di upper BB = trend UP yang kuat (bukan reversal).
+ * Harga yang terus di lower BB = trend DOWN kuat.
  */
 function voteBollinger(candle) {
     if (candle.bbUpper === null || candle.bbLower === null) return 0;
@@ -103,20 +109,23 @@ function voteBollinger(candle) {
 
     const pos = (candle.close - candle.bbLower) / range; // 0 = bawah, 1 = atas
 
-    if (pos < 0.25) return +1;  // dekat lower band → potensi naik
-    if (pos > 0.75) return -1;  // dekat upper band → potensi turun
+    if (pos > 0.55) return +1;  // dominan upper = bullish momentum
+    if (pos < 0.45) return -1;  // dominan lower = bearish momentum
     return 0;
 }
 
 /**
- * V6: Stochastic %K vs %D
- * UP jika %K > %D dan keduanya < 50 (momentum naik dari oversold)
- * DOWN jika %K < %D dan keduanya > 50 (momentum turun dari overbought)
+ * V6: Stochastic %K vs %D — MOMENTUM mode (pure cross)
+ * UP  jika %K > %D (momentum turning bullish — tanpa batasan zona)
+ * DOWN jika %K < %D (momentum turning bearish — tanpa batasan zona)
+ *
+ * Logika: Cross K/D adalah sinyal momentum murni.
+ * Zona overbought (K>80) tetap valid di uptrend kuat.
  */
 function voteStochastic(candle) {
     if (candle.stochK === null || candle.stochD === null) return 0;
-    if (candle.stochK > candle.stochD && candle.stochK < 50) return +1;
-    if (candle.stochK < candle.stochD && candle.stochK > 50) return -1;
+    if (candle.stochK > candle.stochD) return +1;  // momentum naik
+    if (candle.stochK < candle.stochD) return -1;  // momentum turun
     return 0;
 }
 
