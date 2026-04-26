@@ -24,7 +24,7 @@ class Scorer {
     this.model = new LogisticModel();
     this.candles = []; // rolling buffer candle terbaru
     this.BUFFER_SIZE = 200; // simpan 200 candle terakhir
-    this.secondary = { pushLiquidation: () => {} }; // dummy agar live-bot.js tidak error saat pushLiquidation
+    this.secondary = { pushLiquidation: () => { } }; // dummy agar live-bot.js tidak error saat pushLiquidation
   }
 
   // Load model yang sudah di-train
@@ -124,7 +124,11 @@ class Scorer {
       const prev = this.candles.length > 1 ? this.candles[this.candles.length - 2] : null;
 
       // Panggil fungsi voting baru
-      const secondaryResult = computeVote(candle, prev, { threshold: 7, requireWindow: true });
+      const secondaryResult = computeVote(candle, prev, {
+        threshold: 5,          // min 5/10 indikator untuk eksekusi
+        scoreThreshold: 3,     // net score ±3 untuk displaySignal
+        requireWindow: true,
+      });
 
       const finalSignal = secondaryResult.signal !== "HOLD"
         ? secondaryResult.signal  // secondary berhasil override
@@ -132,12 +136,16 @@ class Scorer {
 
       const source = secondaryResult.signal !== "HOLD" ? "secondary_override" : "primary";
 
+      // Log sinyal tampilan (displaySignal) — selalu muncul meski tidak trade
+      const dIcon = secondaryResult.displaySignal === "UP" ? "🟢" : secondaryResult.displaySignal === "DOWN" ? "🔴" : "⚪";
+      logger.info(`${dIcon} Display=${secondaryResult.displaySignal} (score=${secondaryResult.score >= 0 ? "+" : ""}${secondaryResult.score}) | Action=${finalSignal} | UP:${secondaryResult.upCount} DOWN:${secondaryResult.downCount}`);
+
       if (secondaryResult.signal !== "HOLD") {
-        logger.info(`✅ Secondary override: HOLD → ${finalSignal} (score=${secondaryResult.score})`);
+        logger.info(`✅ Secondary override: HOLD → ${finalSignal} (${secondaryResult.upCount} indikator sepakat)`);
       } else {
-        logger.info(`⚪ Secondary juga HOLD (score=${secondaryResult.score}) → tidak pasang taruhan`);
+        logger.info(`⚪ Secondary: tidak cukup untuk eksekusi (butuh 5 indikator, dapat ${Math.max(secondaryResult.upCount, secondaryResult.downCount)})`);
       }
-      
+
       // Log detail voting
       logger.info(secondaryResult.breakdown);
 

@@ -3,12 +3,18 @@
 //
 // LOGIKA UTAMA:
 //   - Setiap indikator vote: +1 (UP), -1 (DOWN), 0 (NEUTRAL)
-//   - Jika totalVote >= +THRESHOLD → sinyal UP
-//   - Jika totalVote <= -THRESHOLD → sinyal DOWN
-//   - Sinyal hanya valid di awal window 5 menit BTC
-//     (00, 05, 10, 15, ... menit)
 //
-// THRESHOLD default = 7 dari 10 indikator
+//   displaySignal (informasi, selalu muncul):
+//     score >= +3 → UP, score <= -3 → DOWN, else → HOLD
+//
+//   signal / actionSignal (untuk eksekusi trade):
+//     upCount >= threshold (default 5) → UP
+//     downCount >= threshold          → DOWN
+//     else                            → HOLD
+//     + hanya aktif di window 5 menit BTC (requireWindow)
+//
+// THRESHOLD default = 5 dari 10 indikator
+// SCORE_THRESHOLD default = 3 (untuk displaySignal)
 // ============================================================
 
 // ─────────────────────────────────────────────
@@ -173,23 +179,30 @@ function votePriceEma(candle, prev) {
 // FUNGSI UTAMA: computeVote
 //
 // Input:
-//   candle  — candle terkini (sudah di-enrich computeAll)
-//   prev    — candle sebelumnya (untuk perbandingan delta)
-//   options — { threshold: 7, requireWindow: true, toleranceSec: 30 }
+//   candle       — candle terkini (sudah di-enrich computeAll)
+//   prev         — candle sebelumnya (untuk perbandingan delta)
+//   options      — {
+//     threshold:      5,    // min upCount/downCount untuk eksekusi trade
+//     scoreThreshold: 3,    // min |score| untuk displaySignal
+//     requireWindow:  true, // hanya entry di window 5 menit
+//     toleranceSec:   30,
+//   }
 //
 // Output: {
-//   signal:     'UP' | 'DOWN' | 'HOLD',
-//   score:      number (-10 to +10),
-//   votes:      { v1..v10: +1/-1/0 },
-//   inWindow:   boolean,
-//   breakdown:  string  (untuk logging),
+//   signal:        'UP' | 'DOWN' | 'HOLD',  // sinyal eksekusi (threshold count)
+//   displaySignal: 'UP' | 'DOWN' | 'HOLD',  // sinyal tampilan (net score ±3)
+//   score:         number (-10 to +10),
+//   votes:         { v1..v10: +1/-1/0 },
+//   inWindow:      boolean,
+//   breakdown:     string (untuk logging),
 // }
 // ─────────────────────────────────────────────
 function computeVote(candle, prev = null, options = {}) {
     const {
-        threshold = 7,       // minimal vote untuk open position
+        threshold = 5,          // min indikator sepakat untuk trade
+        scoreThreshold = 3,     // net score untuk displaySignal
         requireWindow = true,   // hanya entry di window 5 menit
-        toleranceSec = 30,     // toleransi detik masuk window
+        toleranceSec = 30,      // toleransi detik masuk window
     } = options;
 
     // Hitung semua vote
@@ -214,10 +227,15 @@ function computeVote(candle, prev = null, options = {}) {
     // Cek apakah sedang di window 5 menit
     const inWindow = isIn5MinWindow(candle.timestamp, toleranceSec);
 
-    // Tentukan sinyal
+    // ── displaySignal: selalu muncul, berdasarkan net score (informatif) ──
+    let displaySignal = "HOLD";
+    if (score >= scoreThreshold) displaySignal = "UP";
+    else if (score <= -scoreThreshold) displaySignal = "DOWN";
+
+    // ── actionSignal: untuk eksekusi trade, berdasarkan count threshold ──
     let rawSignal = "HOLD";
-    if (score >= threshold) rawSignal = "UP";
-    if (score <= -threshold) rawSignal = "DOWN";
+    if (upCount >= threshold) rawSignal = "UP";
+    else if (downCount >= threshold) rawSignal = "DOWN";
 
     // Jika requireWindow aktif, hanya trade di window 5 menit
     const signal = requireWindow && !inWindow ? "HOLD" : rawSignal;
@@ -231,14 +249,17 @@ function computeVote(candle, prev = null, options = {}) {
         })
         .join(" | ");
 
+    const displayIcon = displaySignal === "UP" ? "🟢" : displaySignal === "DOWN" ? "🔴" : "⚪";
+    const actionIcon = signal === "UP" ? "🟢" : signal === "DOWN" ? "🔴" : "⚪";
+
     const breakdown =
         `[VOTE] Score=${score >= 0 ? "+" : ""}${score} ` +
         `(UP:${upCount} DOWN:${downCount}) ` +
         `Window=${inWindow ? "✅" : "❌"} ` +
-        `→ ${signal}\n` +
+        `| Display=${displayIcon}${displaySignal} | Action=${actionIcon}${signal}\n` +
         `       ${voteStr}`;
 
-    return { signal, score, upCount, downCount, votes, inWindow, breakdown };
+    return { signal, displaySignal, score, upCount, downCount, votes, inWindow, breakdown };
 }
 
 // ─────────────────────────────────────────────
