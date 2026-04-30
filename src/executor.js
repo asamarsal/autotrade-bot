@@ -1,5 +1,5 @@
 // ============================================================
-// src/executor.js — Polymarket execution layer
+// src/executor.js - Polymarket execution layer
 // Mengirim order ke Polymarket berdasarkan signal dari scorer
 // ============================================================
 
@@ -53,7 +53,7 @@ class Executor {
     const { signal, pUp, pDown, price, timestamp } = scoreResult;
 
     if (signal === "HOLD") {
-      logger.debug(`HOLD — p=${pUp}, tidak ada aksi`);
+      logger.debug(`HOLD - p=${pUp}, tidak ada aksi`);
       return null;
     }
 
@@ -66,16 +66,13 @@ class Executor {
     const kellyFraction = (b * p - q) / b;
     const safeFraction = Math.max(0, Math.min(kellyFraction * 0.5, C.BET_SIZE)); // half-kelly, max 2%
 
-    // Di paper mode: jika Kelly negatif (model tidak yakin),
-    // tetap catat trade dengan bet tetap kecil agar bisa evaluasi akurasi sinyal.
-    // Di live mode: skip jika tidak ada edge (safeFraction = 0).
-    let betAmount;
-    if (!this.isLive && safeFraction === 0) {
-      betAmount = round(balance * (C.PAPER_BET_SIZE || 0.01), 2); // 1% fixed paper bet
-      logger.debug(`Paper mode: Kelly negatif → pakai fixed bet $${betAmount}`);
-    } else {
-      betAmount = round(balance * safeFraction, 2);
+    // Safe mode: jangan entry jika Kelly tidak positif (tidak ada edge statistik).
+    if (safeFraction <= 0) {
+      logger.debug(`Skip trade: Kelly tidak positif (p=${round(p, 4)}, kelly=${round(kellyFraction, 4)})`);
+      return null;
     }
+
+    const betAmount = round(balance * safeFraction, 2);
 
     if (betAmount < 1) {
       logger.debug(`Bet terlalu kecil (${betAmount} USD), skip`);
@@ -95,14 +92,14 @@ class Executor {
       status: "pending",
     };
 
-    logger.info(`📊 SIGNAL ${signal} | P=${p} | Bet=$${betAmount}`);
+    logger.info(`[SIGNAL] ${signal} | P=${p} | Bet=$${betAmount}`);
 
     if (this.isLive) {
       trade.status = await this.sendOrder(trade, market);
     } else {
-      // Paper trading — simulasi instant fill
+      // Paper trading - simulasi instant fill
       trade.status = "filled_paper";
-      logger.info(`📝 PAPER ORDER filled: ${signal} $${betAmount}`);
+      logger.info(`[PAPER] ORDER filled: ${signal} $${betAmount}`);
     }
 
     this.positions.push(trade);

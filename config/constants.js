@@ -19,13 +19,13 @@ module.exports = {
 
     // --- BACKTEST ---
     INITIAL_BALANCE: 1000,    // USD simulasi
-    BET_SIZE: 0.02,           // 2% per trade
+    BET_SIZE: 0.01,           // 1% per trade (safe mode)
     WIN_MULTIPLIER: 1.92,     // Polymarket YES payout rata2
     LOSS_MULTIPLIER: 0,       // kalah = 0
-    THRESHOLD_UP: 0.60,       // predict UP kalau P >= 0.60
-    THRESHOLD_DOWN: 0.40,     // predict DOWN kalau P <= 0.40
+    THRESHOLD_UP: 0.67,       // safe mode: hanya ambil UP saat confidence lebih kuat
+    THRESHOLD_DOWN: 0.33,     // safe mode: hanya ambil DOWN saat confidence lebih kuat
     PREDICT_HORIZON: 5,       // candle ke depan untuk label (5 menit)
-    TRADE_MODE: "continuous", // "continuous" (tiap menit) atau "fixed" (tiap 5 menit)
+    TRADE_MODE: "fixed",      // safe mode: trade hanya di menit sejajar horizon
 
     // --- DATA ---
     BINANCE_SYMBOL: "BTCUSDT",
